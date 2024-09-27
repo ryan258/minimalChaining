@@ -1,5 +1,6 @@
 const MinimalChainable = require('../../MinimalChainable');
 const fetch = require('node-fetch');
+const path = require('path');
 require('dotenv').config();
 
 const API_URL = process.env.API_URL;
@@ -55,8 +56,9 @@ async function createStory() {
   });
 
   try {
-    const savedStory = MinimalChainable.toDelimTextFile('our_magical_story', storyParts);
-    console.log("✨ Our story has been saved in 'our_magical_story.txt'! ✨");
+    const logsDir = path.join(__dirname, 'logs');
+    const { resultString, filePath } = MinimalChainable.toDelimTextFile('story', storyParts, logsDir);
+    console.log(`✨ Our story has been saved in '${filePath}'! ✨`);
   } catch (error) {
     console.error("🙈 Oops! We couldn't save the story:", error);
   }

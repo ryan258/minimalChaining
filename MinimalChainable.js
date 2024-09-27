@@ -42,15 +42,22 @@ class MinimalChainable {
     return [output, contextFilledPrompts];
   }
 
-  static toDelimTextFile(name, content) {
+  static toDelimTextFile(name, content, directory = '.') {
     let resultString = '';
-    const writeStream = fs.createWriteStream(`${name}.txt`);
+    const timestamp = new Date().toISOString().replace(/[:T]/g, '-').split('.')[0];
+    const fileName = `${name}-${timestamp}.md`;
+    const filePath = path.join(directory, fileName);
+
+    // Ensure the directory exists
+    fs.mkdirSync(directory, { recursive: true });
+
+    const writeStream = fs.createWriteStream(filePath);
 
     content.forEach((item, index) => {
       if (typeof item === 'object' && item !== null) {
         item = JSON.stringify(item);
       }
-      const chainTextDelim = `${'🔗'.repeat(index + 1)} -------- Magic Answer #${index + 1} -------------\n\n`;
+      const chainTextDelim = `## Chapter ${index + 1}\n\n`;
       writeStream.write(chainTextDelim);
       writeStream.write(item);
       writeStream.write('\n\n');
@@ -58,7 +65,7 @@ class MinimalChainable {
     });
 
     writeStream.end();
-    return resultString;
+    return { resultString, filePath };
   }
 }
 
