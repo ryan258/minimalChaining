@@ -1,22 +1,34 @@
-// 🌟 Welcome to the Magical Story Buddy Project! 🌟
-
 const MinimalChainable = require('../../MinimalChainable');
+const fetch = require('node-fetch');
 require('dotenv').config();
 
 const API_URL = process.env.API_URL;
 const MODEL_NAME = process.env.MODEL_NAME;
 
-// 🎭 This is our magical helper that talks to the AI
 async function askAI(model, prompt) {
-  // 🚀 In a real project, we'd send our question to the AI here
-  // For now, let's create more varied responses
-  const responses = [
-    `In a cozy treehouse, ${prompt}`,
-    `The ${prompt} sparkled with magical energy!`,
-    `Suddenly, ${prompt} causing quite a commotion!`,
-    `With quick thinking, ${prompt} saving the day!`
-  ];
-  return responses[Math.floor(Math.random() * responses.length)];
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL_NAME,
+        prompt: prompt,
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.response;
+  } catch (error) {
+    console.error("🙈 Oops! Couldn't talk to our AI friend:", error);
+    return "The magical AI is taking a nap. Let's try again later!";
+  }
 }
 
 async function createStory() {
@@ -29,10 +41,10 @@ async function createStory() {
   };
 
   const prompts = [
-    "{{hero}} lived happily.",
-    "{{hero}} found {{magic_item}}.",
-    "{{villain}} tried to steal {{magic_item}}.",
-    "{{hero}} cleverly tricked {{villain}}."
+    "Write a short paragraph introducing {{hero}} who lives in a cozy treehouse.",
+    "Continue the story: {{hero}} discovers {{magic_item}}. Describe what happens in a brief paragraph.",
+    "Continue the story: Suddenly, {{villain}} appears and wants to steal {{magic_item}}! Write a short, exciting paragraph about this confrontation.",
+    "Conclude the story: Describe how {{hero}} cleverly outsmarts {{villain}} and saves the day."
   ];
 
   const [storyParts, _] = await MinimalChainable.run(context, MODEL_NAME, askAI, prompts);
