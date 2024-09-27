@@ -2,14 +2,18 @@
 
 const MinimalChainable = require('../../MinimalChainable');
 const { askAI } = require('../../utils/aiUtils');
+const { writeTimestampedFile } = require('../../utils/fileUtils');
+const { log, logError } = require('../../utils/loggerUtils');
+const { asyncErrorHandler } = require('../../utils/errorUtils');
+const { getEnvVariable } = require('../../utils/envUtils');
+const { replacePlaceholders } = require('../../utils/stringUtils');
 const path = require('path');
-require('dotenv').config();
 
-const API_URL = process.env.API_URL;
-const MODEL_NAME = process.env.MODEL_NAME;
+const API_URL = getEnvVariable('API_URL');
+const MODEL_NAME = getEnvVariable('MODEL_NAME');
 
 async function createStory() {
-  console.log("🔮 Welcome to Story Buddy! Let's create a magical tale together! 🔮");
+  log("Welcome to Story Buddy! Let's create a magical tale together!", '🔮');
 
   const context = {
     hero: "a brave little mouse named Pip",
@@ -27,22 +31,21 @@ async function createStory() {
   const [storyParts, _] = await MinimalChainable.run(
     context, 
     MODEL_NAME, 
-    (model, prompt) => askAI(API_URL, model, prompt), 
+    (model, prompt) => askAI(API_URL, model, replacePlaceholders(prompt, context)), 
     prompts
   );
 
-  console.log("\n📘 Here's our magical story:\n");
+  log("\nHere's our magical story:\n", '📘');
   storyParts.forEach((part, index) => {
-    console.log(`Chapter ${index + 1}: ${part}\n`);
+    log(`Chapter ${index + 1}: ${part}\n`);
   });
 
-  try {
-    const logsDir = path.join(__dirname, 'logs');
-    const { resultString, filePath } = MinimalChainable.toDelimTextFile('story', storyParts, logsDir);
-    console.log(`✨ Our story has been saved in '${filePath}'! ✨`);
-  } catch (error) {
-    console.error("🙈 Oops! We couldn't save the story:", error);
-  }
+  const logsDir = path.join(__dirname, 'logs');
+  const storyContent = storyParts.map((part, index) => `## Chapter ${index + 1}\n\n${part}\n\n`).join('');
+  const filePath = writeTimestampedFile('story', storyContent, logsDir);
+  log(`Our story has been saved in '${filePath}'!`, '✨');
 }
 
-createStory().catch(error => console.error("🙈 Oops! A bit of magic went wrong:", error));
+const safeCreateStory = asyncErrorHandler(createStory);
+
+safeCreateStory().catch(error => logError("A bit of magic went wrong:", error));
