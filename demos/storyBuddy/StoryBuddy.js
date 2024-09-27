@@ -1,36 +1,12 @@
+// demos/storyBuddy/StoryBuddy.js
+
 const MinimalChainable = require('../../MinimalChainable');
-const fetch = require('node-fetch');
+const { askAI } = require('../../utils/aiUtils');
 const path = require('path');
 require('dotenv').config();
 
 const API_URL = process.env.API_URL;
 const MODEL_NAME = process.env.MODEL_NAME;
-
-async function askAI(model, prompt) {
-  try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL_NAME,
-        prompt: prompt,
-        stream: false,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.response;
-  } catch (error) {
-    console.error("🙈 Oops! Couldn't talk to our AI friend:", error);
-    return "The magical AI is taking a nap. Let's try again later!";
-  }
-}
 
 async function createStory() {
   console.log("🔮 Welcome to Story Buddy! Let's create a magical tale together! 🔮");
@@ -48,7 +24,12 @@ async function createStory() {
     "Conclude the story: Describe how {{hero}} cleverly outsmarts {{villain}} and saves the day."
   ];
 
-  const [storyParts, _] = await MinimalChainable.run(context, MODEL_NAME, askAI, prompts);
+  const [storyParts, _] = await MinimalChainable.run(
+    context, 
+    MODEL_NAME, 
+    (model, prompt) => askAI(API_URL, model, prompt), 
+    prompts
+  );
 
   console.log("\n📘 Here's our magical story:\n");
   storyParts.forEach((part, index) => {
