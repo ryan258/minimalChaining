@@ -101,7 +101,7 @@ async function runMultiAgentChain() {
     log("We're going to scrape a website, summarize its content, analyze its sentiment using OpenAI, and describe a visualization.", '🔗');
 
     // We're choosing a website to read
-    const url = 'https://en.wikipedia.org/wiki/Progressive_rock';
+    const url = 'https://en.wikipedia.org/wiki/Bob%27s_Burgers';
     log(`Step 1: Scraping content from ${url}`, '🕷️');
     
     // We're asking our first AI friend to read and clean the website content
