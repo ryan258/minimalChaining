@@ -1,52 +1,36 @@
-# 🌟 StoryBuddy: AI-Powered Story Generator
+# 🌟 StoryBuddy: AI-Powered Dual Model Story Generator
 
-StoryBuddy is an interactive, AI-powered story generation tool designed to create unique, imaginative stories. It's built using Node.js and integrates with local AI models through Ollama.
+StoryBuddy is an interactive, AI-powered story generation tool designed to create unique, imaginative stories using both local and cloud-based AI models. It's built using Node.js and integrates with local AI models through Ollama and cloud-based models through OpenAI.
 
 ## 📚 Table of Contents
 
-- [🌟 StoryBuddy: AI-Powered Story Generator](#-storybuddy-ai-powered-story-generator)
+- [🌟 StoryBuddy: AI-Powered Dual Model Story Generator](#-storybuddy-ai-powered-dual-model-story-generator)
   - [📚 Table of Contents](#-table-of-contents)
   - [✨ Features](#-features)
-  - [📁 Project Structure](#-project-structure)
   - [🛠 Prerequisites](#-prerequisites)
   - [📥 Installation](#-installation)
   - [🚀 Usage](#-usage)
   - [🧠 How It Works](#-how-it-works)
+  - [📁 Project Structure](#-project-structure)
+  - [🔧 Configuration](#-configuration)
   - [🎨 Customization](#-customization)
   - [🤝 Contributing](#-contributing)
   - [📄 License](#-license)
 
 ## ✨ Features
 
-- Generate unique stories using AI
-- Modular and extensible codebase
+- Generate unique stories using two AI models simultaneously
 - Local AI model integration via Ollama
+- Cloud-based AI model integration via OpenAI
+- Modular and extensible codebase
 - Automatic story saving with timestamps
 - Customizable story elements and prompts
-
-## 📁 Project Structure
-
-```
-minimalChaining/
-├── MinimalChainable.js
-├── utils/
-│   ├── aiUtils.js
-│   ├── fileUtils.js
-│   ├── loggerUtils.js
-│   ├── errorUtils.js
-│   ├── envUtils.js
-│   └── stringUtils.js
-├── demos/
-│   └── storyBuddy/
-│       ├── StoryBuddy.js
-│       └── logs/
-└── README.md
-```
 
 ## 🛠 Prerequisites
 
 - Node.js (v12 or higher)
 - Ollama set up with the `llama3.1:latest` model
+- OpenAI API key
 
 ## 📥 Installation
 
@@ -66,7 +50,11 @@ minimalChaining/
    API_URL=http://localhost:11434/api/generate
    MODEL_NAME=llama3.1:latest
    PORT=3000
+   OPENAI_API_KEY=your_openai_api_key_here
+   OPENAI_MODEL=gpt-4-mini
    ```
+
+   Replace `your_openai_api_key_here` with your actual OpenAI API key.
 
 ## 🚀 Usage
 
@@ -76,15 +64,51 @@ To run StoryBuddy:
 node demos/storyBuddy/StoryBuddy.js
 ```
 
-The generated story will be displayed in the console and saved as a Markdown file in the `demos/storyBuddy/logs/` directory.
+StoryBuddy will generate two stories:
+1. One using the local Ollama model
+2. Another using the specified OpenAI model
+
+Both stories will be displayed in the console and saved as separate Markdown files in the `demos/storyBuddy/logs/` directory.
 
 ## 🧠 How It Works
 
-1. StoryBuddy uses a series of prompts to guide the AI in creating a story.
-2. Each prompt is processed by the AI model, with context from previous responses.
-3. The `MinimalChainable` class manages the sequence of prompts and responses.
-4. Utility modules handle various aspects like AI interaction, file operations, and error handling.
-5. The final story is displayed in the console and saved as a Markdown file.
+1. StoryBuddy uses a series of prompts to guide both AI models in creating stories.
+2. Each prompt is processed by both AI models, with context from previous responses.
+3. The `MinimalChainable` class manages the sequence of prompts and responses for the local model.
+4. The OpenAI model processes all prompts in parallel for efficiency.
+5. Utility modules handle various aspects like AI interaction, file operations, and error handling.
+6. The final stories are displayed in the console and saved as Markdown files.
+
+## 📁 Project Structure
+
+```
+minimalChaining/
+├── MinimalChainable.js
+├── utils/
+│   ├── aiUtils.js
+│   ├── openAiUtils.js
+│   ├── fileUtils.js
+│   ├── loggerUtils.js
+│   ├── errorUtils.js
+│   ├── envUtils.js
+│   └── stringUtils.js
+├── demos/
+│   └── storyBuddy/
+│       ├── StoryBuddy.js
+│       ├── README.md
+│       └── logs/
+└── README.md
+```
+
+## 🔧 Configuration
+
+You can configure StoryBuddy by modifying the `.env` file:
+
+- `API_URL`: The URL for your local Ollama instance
+- `MODEL_NAME`: The name of the local Ollama model to use
+- `PORT`: The port for your application (if needed)
+- `OPENAI_API_KEY`: Your OpenAI API key
+- `OPENAI_MODEL`: The OpenAI model to use (e.g., gpt-4-mini)
 
 ## 🎨 Customization
 
@@ -115,4 +139,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-Happy storytelling with StoryBuddy! 📚✨
+Happy storytelling with StoryBuddy! 📚✨🤖🌐

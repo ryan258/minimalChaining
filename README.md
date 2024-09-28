@@ -1,6 +1,6 @@
 # 🔗 MinimalChaining: Flexible AI Interaction Framework
 
-MinimalChaining is a lightweight, flexible framework for chaining AI interactions and processing the results. It's designed to simplify the process of sending multiple, context-aware prompts to AI models and managing their responses.
+MinimalChaining is a lightweight, flexible framework for chaining AI interactions and processing the results. It's designed to simplify the process of sending multiple, context-aware prompts to AI models and managing their responses, with integrated tools to enhance AI capabilities.
 
 ## 📚 Table of Contents
 
@@ -13,30 +13,46 @@ MinimalChaining is a lightweight, flexible framework for chaining AI interaction
   - [🚀 Usage](#-usage)
   - [🧠 Core Components](#-core-components)
     - [MinimalChainable](#minimalchainable)
-  - [🛠 Utility Modules](#-utility-modules)
+    - [Enhanced AI Agent](#enhanced-ai-agent)
+  - [🛠 Tools Framework](#-tools-framework)
   - [🎭 Demos](#-demos)
-    - [StoryBuddy](#storybuddy)
+  - [🧪 Testing](#-testing)
   - [🎨 Customization](#-customization)
   - [🤝 Contributing](#-contributing)
   - [📄 License](#-license)
 
 ## 🌟 Overview
 
-MinimalChaining provides a simple yet powerful way to interact with AI models in a sequential, context-aware manner. It's particularly useful for applications that require multi-step AI interactions, such as story generation, complex problem-solving, or any task that benefits from maintaining context across multiple AI queries.
+MinimalChaining provides a simple yet powerful way to interact with AI models in a sequential, context-aware manner. It's particularly useful for applications that require multi-step AI interactions, such as story generation, complex problem-solving, or any task that benefits from maintaining context across multiple AI queries. The framework now includes an enhanced AI agent capable of using various tools to augment its capabilities.
 
 ## ✨ Features
 
 - Sequential, context-aware AI interactions
 - Flexible integration with various AI models
+- Enhanced AI agent with integrated tools
 - Modular design for easy customization and extension
 - Built-in utilities for common tasks (file operations, error handling, etc.)
-- Demo application (StoryBuddy) showcasing practical usage
+- Comprehensive tool framework for extending AI capabilities
+- Demo applications showcasing practical usage
 
 ## 📁 Project Structure
 
 ```
 minimalChaining/
 ├── MinimalChainable.js
+├── MinimalChainable.test.js
+├── agents/
+│   ├── enhancedAIAgent.js
+│   ├── enhancedAIAgent.test.js
+│   └── enhancedAIAgent.readme.md
+├── tools/
+│   ├── apiInteractionTool.js
+│   ├── dataVisualizationTool.js
+│   ├── fileSystemTool.js
+│   ├── nlpTool.js
+│   ├── toolIntegrationFramework.js
+│   ├── webScrapingTool.js
+│   └── TOOLS.readme.md
 ├── utils/
 │   ├── aiUtils.js
 │   ├── fileUtils.js
@@ -45,9 +61,13 @@ minimalChaining/
 │   ├── envUtils.js
 │   └── stringUtils.js
 ├── demos/
-│   └── storyBuddy/
-│       ├── StoryBuddy.js
-│       └── logs/
+│   ├── storyBuddy/
+│   │   └── StoryBuddy.js
+│   ├── DebateSimulator.js
+│   └── DebateSimulator.readme.md
+├── .env
+├── .env.example
+├── package.json
 └── README.md
 ```
 
@@ -64,7 +84,12 @@ minimalChaining/
    npm install
    ```
 
-3. Set up your `.env` file in the root directory with your AI model configurations.
+3. Set up your `.env` file in the root directory with your AI model configurations:
+   ```
+   API_URL=http://localhost:11434/api/generate
+   MODEL_NAME=llama3.1:latest
+   PORT=3000
+   ```
 
 ## 🚀 Usage
 
@@ -97,6 +122,19 @@ async function runChain() {
 runChain();
 ```
 
+For using the Enhanced AI Agent with tools:
+
+```javascript
+const { enhancedAIAgent } = require('./agents/enhancedAIAgent');
+
+async function getWeatherReport() {
+  const response = await enhancedAIAgent('Give me a detailed weather report for New York City.');
+  console.log('Weather Report:', response);
+}
+
+getWeatherReport();
+```
+
 ## 🧠 Core Components
 
 ### MinimalChainable
@@ -107,24 +145,47 @@ Key methods:
 - `run(context, model, callable, prompts)`: Executes the chain of prompts.
 - `toDelimTextFile(name, content, directory)`: Saves the results to a file.
 
-## 🛠 Utility Modules
+### Enhanced AI Agent
 
-- `aiUtils.js`: Handles AI model interactions.
-- `fileUtils.js`: Manages file operations.
-- `loggerUtils.js`: Provides consistent logging functionality.
-- `errorUtils.js`: Offers error handling utilities.
-- `envUtils.js`: Manages environment variables.
-- `stringUtils.js`: Provides string manipulation functions.
+The `enhancedAIAgent` is capable of using various tools to augment its capabilities. It can perform tasks such as web scraping, file manipulation, NLP, API interactions, and data visualization.
+
+## 🛠 Tools Framework
+
+Our tools framework provides a set of utilities that extend the AI's capabilities:
+
+- Web Scraping Tool
+- File System Tool
+- NLP Tool
+- API Interaction Tool
+- Data Visualization Tool
+
+For more details, see the [Tools Framework README](./tools/TOOLS.readme.md).
 
 ## 🎭 Demos
 
-### StoryBuddy
+1. **StoryBuddy**: Generates stories using AI.
+   ```
+   node demos/storyBuddy/StoryBuddy.js
+   ```
 
-A demo application that uses MinimalChaining to generate stories with AI. It showcases how to use the framework for creative tasks.
+2. **DebateSimulator**: Simulates a debate on a given topic.
+   ```
+   node demos/DebateSimulator.js
+   ```
 
-To run StoryBuddy:
+## 🧪 Testing
+
+We use Jest for testing. Run all tests with:
+
 ```
-node demos/storyBuddy/StoryBuddy.js
+npm test
+```
+
+To run tests for a specific component:
+
+```
+npm test MinimalChainable.test.js
+npm test agents/enhancedAIAgent.test.js
 ```
 
 ## 🎨 Customization
@@ -133,6 +194,8 @@ MinimalChaining is designed to be easily customizable:
 
 - Modify `MinimalChainable.js` to change the core chaining logic.
 - Add or modify utility modules in the `utils/` directory for additional functionality.
+- Extend the Enhanced AI Agent in `agents/enhancedAIAgent.js`.
+- Add new tools to the `tools/` directory and integrate them into the `toolIntegrationFramework.js`.
 - Create new demo applications in the `demos/` directory to showcase different use cases.
 
 ## 🤝 Contributing

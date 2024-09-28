@@ -3,6 +3,7 @@
 // First, we import all the tools we need for our story-making adventure!
 const MinimalChainable = require('../../MinimalChainable');
 const { askAI } = require('../../utils/aiUtils');
+const { askOpenAI } = require('../../utils/openAiUtils');  // This is our OpenAI helper!
 const { writeTimestampedFile } = require('../../utils/fileUtils');
 const { log, logError } = require('../../utils/loggerUtils');
 const { asyncErrorHandler } = require('../../utils/errorUtils');
@@ -10,14 +11,15 @@ const { getEnvVariable } = require('../../utils/envUtils');
 const { replacePlaceholders } = require('../../utils/stringUtils');
 const path = require('path');
 
-// We're getting the secret ingredients (API_URL and MODEL_NAME) from our magic recipe book (.env file)
+// We're getting the secret ingredients from our magic recipe book (.env file)
 const API_URL = getEnvVariable('API_URL');
-const MODEL_NAME = getEnvVariable('MODEL_NAME');
+const LOCAL_MODEL_NAME = getEnvVariable('MODEL_NAME');
+const OPENAI_MODEL_NAME = getEnvVariable('OPENAI_MODEL');
 
 // This is our main story-making function. It's like a big pot where we mix all our story ingredients!
 async function createStory() {
   // We start by welcoming everyone to our story-making adventure!
-  log("Welcome to Story Buddy! Let's create a magical tale together!", '🔮');
+  log("Welcome to Story Buddy! Let's create magical tales together!", '🔮');
 
   // This is like our story's recipe. We're deciding who our characters are and what magical item they'll find!
   const context = {
@@ -34,27 +36,37 @@ async function createStory() {
     "Conclude the story: Describe how {{hero}} cleverly outsmarts {{villain}} and saves the day."
   ];
 
-  // Now, we're asking our AI friend to help us write the story. It's like having a magical storytelling assistant!
-  const [storyParts, _] = await MinimalChainable.run(
+  // Now, we're asking our AI friends to help us write the stories. It's like having two magical storytelling assistants!
+  log(`Creating a story with our local AI model (${LOCAL_MODEL_NAME})...`, '🤖');
+  const [localStoryParts, _] = await MinimalChainable.run(
     context, 
-    MODEL_NAME, 
+    LOCAL_MODEL_NAME, 
     (model, prompt) => askAI(API_URL, model, replacePlaceholders(prompt, context)), 
     prompts
   );
 
-  // We're announcing that our story is ready!
-  log("\nHere's our magical story:\n", '📘');
-  
-  // We're reading each part of our story out loud
-  storyParts.forEach((part, index) => {
+  log(`Creating another story with OpenAI model (${OPENAI_MODEL_NAME})...`, '🌐');
+  const openAIStoryParts = await Promise.all(prompts.map(prompt => 
+    askOpenAI(replacePlaceholders(prompt, context))
+  ));
+
+  // We're announcing that our stories are ready!
+  log(`\nHere's our magical story from the local AI (${LOCAL_MODEL_NAME}):\n`, '📘');
+  localStoryParts.forEach((part, index) => {
     log(`Chapter ${index + 1}: ${part}\n`);
   });
 
-  // Now, we're saving our story in a special book (file) so we can read it again later!
+  log(`\nAnd here's another version from OpenAI (${OPENAI_MODEL_NAME}):\n`, '📕');
+  openAIStoryParts.forEach((part, index) => {
+    log(`Chapter ${index + 1}: ${part}\n`);
+  });
+
+  // Now, we're saving both stories in special books (files) so we can read them again later!
   const logsDir = path.join(__dirname, 'logs');
-  // We're just passing the raw story parts to writeTimestampedFile now
-  const { filePath } = writeTimestampedFile('story', storyParts, logsDir);
-  log(`Our story has been saved in '${filePath}'!`, '✨');
+  const { filePath: localFilePath } = writeTimestampedFile(`local_story_${LOCAL_MODEL_NAME}`, localStoryParts, logsDir);
+  const { filePath: openAIFilePath } = writeTimestampedFile(`openai_story_${OPENAI_MODEL_NAME}`, openAIStoryParts, logsDir);
+  log(`Our local AI story has been saved in '${localFilePath}'!`, '✨');
+  log(`Our OpenAI story has been saved in '${openAIFilePath}'!`, '✨');
 }
 
 // This is like a safety net. If anything goes wrong while we're making our story, it catches the problem and tells us about it.
