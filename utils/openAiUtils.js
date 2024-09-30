@@ -1,11 +1,16 @@
 // utils/openAiUtils.js
 
-// We're bringing in some helpful tools to make our code work smoothly
 const fetch = require('node-fetch');  // This is like a messenger that can send and receive information from the internet
 const { getEnvVariable } = require('./envUtils');  // This helps us get secret information safely
+const { z } = require('zod');  // This is a helper that checks if our data is in the right shape
 
-// This is the main function that talks to the OpenAI robot brain
-async function askOpenAI(prompt) {
+/**
+ * This is our magical function that talks to the OpenAI robot brain and asks for a structured response
+ * @param {string} prompt - This is our question or request for the AI
+ * @param {z.ZodType} schema - This is like a blueprint for how we want the AI to format its answer
+ * @return {Promise<Object>} - This is the magic spell (Promise) that will give us the AI's structured response
+ */
+async function askOpenAI(prompt, schema) {
   // First, we get the secret key to talk to OpenAI. It's like a special password!
   const apiKey = getEnvVariable('OPENAI_API_KEY');
   
@@ -14,6 +19,9 @@ async function askOpenAI(prompt) {
   
   // This is the address where OpenAI's robot brain lives
   const apiUrl = 'https://api.openai.com/v1/chat/completions';
+
+  // Modify the prompt to include 'json' for JSON response format
+  const jsonPrompt = `${prompt}\n\nPlease provide your response in JSON format.`;
 
   try {
     // Now we're sending a message to OpenAI's robot brain
@@ -24,26 +32,34 @@ async function askOpenAI(prompt) {
         'Authorization': `Bearer ${apiKey}`  // This is like showing our ID to prove we're allowed to talk to OpenAI
       },
       body: JSON.stringify({  // We're turning our message into a special format that OpenAI understands
-        model: modelName,  // This is the specific robot brain we want to talk to, which we got from our secret recipe book (.env)
-        messages: [{ role: "user", content: prompt }],  // This is our message to the robot brain
-        temperature: 0.7  // This is how creative we want the robot brain to be (higher = more creative)
+        model: modelName,  // This is the specific robot brain we want to talk to
+        messages: [{ role: "user", content: jsonPrompt }],  // This is our message to the robot brain
+        temperature: 0.7,  // This is how creative we want the robot brain to be (higher = more creative)
+        response_format: { type: "json_object" }  // This tells OpenAI we want a JSON response
       })
     });
 
     // If something went wrong with our message, we'll let someone know
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+      const errorBody = await response.text();
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}\n${errorBody}`);
     }
 
     // We're taking the robot brain's response and turning it into something we can understand
     const data = await response.json();
     
-    // We're returning just the part of the response that we care about - the actual message from the robot brain
-    return data.choices[0].message.content;
+    // We're getting just the part of the response that we care about - the actual message from the robot brain
+    const content = JSON.parse(data.choices[0].message.content);
+    
+    // We're using our blueprint (schema) to make sure the AI's answer is in the right format
+    return schema.parse(content);
   } catch (error) {
     // If anything goes wrong, we'll shout for help!
     console.error("🚨 Oops! Something went wrong when talking to OpenAI:", error);
-    return "I couldn't get an answer from OpenAI right now. Let's try again later!";
+    if (error instanceof z.ZodError) {
+      console.error("The response didn't match our expected format:", error.errors);
+    }
+    return { error: "I couldn't get a proper answer from OpenAI right now. Let's try again later!", details: error.message };
   }
 }
 

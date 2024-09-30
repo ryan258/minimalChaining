@@ -3,7 +3,7 @@ const path = require('path');
 
 class MinimalChainable {
   // This method is the heart of our AI chaining process
-  static async run(context, model, callable, prompts) {
+  static async run(context, model, callable, prompts, schema) {
     const output = [];  // This will store all our AI responses
     const contextFilledPrompts = [];  // This will store our prompts after filling in the context
 
@@ -21,29 +21,17 @@ class MinimalChainable {
       // If this isn't our first prompt, we add previous responses to give context
       // It's like reminding the AI of what happened in earlier chapters of our story
       if (i > 0) {
-        const previousContext = output.slice(0, i).join("\n\n");
+        const previousContext = output.slice(0, i).map(JSON.stringify).join("\n\n");
         prompt = `Previous story parts:\n\n${previousContext}\n\nNow, continue the story:\n${prompt}`;
       }
 
       contextFilledPrompts.push(prompt);  // We save our filled-in prompt
 
       // Now we ask our AI friend to respond to our prompt
-      let result = await callable(model, prompt);
+      let result = await callable(prompt, schema);
 
-      // The AI might give us a JSON response, so we try to parse it
-      // It's like trying to unwrap a present - sometimes it's easy, sometimes it's tricky!
-      try {
-        const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-        if (jsonMatch) {
-          result = JSON.parse(jsonMatch[1]);
-        } else {
-          result = JSON.parse(result);
-        }
-      } catch (error) {
-        // If it's not JSON, we keep it as is - no harm done!
-      }
-
-      output.push(result);  // We add the AI's response to our collection
+      // The AI gives us a structured response, so we don't need to parse it
+      output.push(result);
     }
 
     // We return both the AI's responses and our filled-in prompts
@@ -66,16 +54,14 @@ class MinimalChainable {
 
     // We go through each part of our content (like chapters in a book)
     content.forEach((item, index) => {
-      // If our item is an object, we turn it into a string
-      if (typeof item === 'object' && item !== null) {
-        item = JSON.stringify(item);
-      }
+      // Our item is already an object, so we just turn it into a string
+      const itemString = JSON.stringify(item, null, 2);
       // We add a header for each chapter
       const chainTextDelim = `## Chapter ${index + 1}\n\n`;
       writeStream.write(chainTextDelim);
-      writeStream.write(item);
+      writeStream.write(itemString);
       writeStream.write('\n\n');
-      resultString += chainTextDelim + item + '\n\n';
+      resultString += chainTextDelim + itemString + '\n\n';
     });
 
     // We close our "book" (file)

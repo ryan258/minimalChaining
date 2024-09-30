@@ -1,20 +1,23 @@
 // demos/storyBuddy/StoryBuddy.js
 
-// First, we import all the tools we need for our story-making adventure!
 const MinimalChainable = require('../../MinimalChainable');
-const { askAI } = require('../../utils/aiUtils');
-const { askOpenAI } = require('../../utils/openAiUtils');  // This is our OpenAI helper!
+const { askOpenAI } = require('../../utils/openAiUtils');
 const { writeTimestampedFile } = require('../../utils/fileUtils');
 const { log, logError } = require('../../utils/loggerUtils');
 const { asyncErrorHandler } = require('../../utils/errorUtils');
 const { getEnvVariable } = require('../../utils/envUtils');
 const { replacePlaceholders } = require('../../utils/stringUtils');
 const path = require('path');
+const { z } = require('zod');  // This is our new friend that helps us define data structures
 
 // We're getting the secret ingredients from our magic recipe book (.env file)
-const API_URL = getEnvVariable('API_URL');
-const LOCAL_MODEL_NAME = getEnvVariable('MODEL_NAME');
-const OPENAI_MODEL_NAME = getEnvVariable('OPENAI_MODEL');
+const MODEL_NAME = getEnvVariable('OPENAI_MODEL');
+
+// This is our story schema - it's like a template for our AI to fill in
+const StorySchema = z.object({
+  content: z.string().describe("The content of the story part"),
+  mood: z.enum(["happy", "sad", "excited", "mysterious"]).describe("The mood of this part of the story")
+});
 
 // This is our main story-making function. It's like a big pot where we mix all our story ingredients!
 async function createStory() {
@@ -30,43 +33,38 @@ async function createStory() {
 
   // These are like the steps in our recipe. Each step tells the AI what part of the story to write next!
   const prompts = [
-    "Write a short paragraph introducing {{hero}} who lives in a cozy treehouse.",
-    "Continue the story: {{hero}} discovers {{magic_item}}. Describe what happens in a brief paragraph.",
-    "Continue the story: Suddenly, {{villain}} appears and wants to steal {{magic_item}}! Write a short, exciting paragraph about this confrontation.",
-    "Conclude the story: Describe how {{hero}} cleverly outsmarts {{villain}} and saves the day."
+    "Write a short paragraph introducing {{hero}} who lives in a cozy treehouse. Respond with a JSON object containing 'content' (the paragraph) and 'mood' (one of: happy, sad, excited, mysterious).",
+    "Continue the story: {{hero}} discovers {{magic_item}}. Describe what happens in a brief paragraph. Respond with a JSON object containing 'content' (the paragraph) and 'mood' (one of: happy, sad, excited, mysterious).",
+    "Continue the story: Suddenly, {{villain}} appears and wants to steal {{magic_item}}! Write a short, exciting paragraph about this confrontation. Respond with a JSON object containing 'content' (the paragraph) and 'mood' (one of: happy, sad, excited, mysterious).",
+    "Conclude the story: Describe how {{hero}} cleverly outsmarts {{villain}} and saves the day. Respond with a JSON object containing 'content' (the paragraph) and 'mood' (one of: happy, sad, excited, mysterious)."
   ];
 
-  // Now, we're asking our AI friends to help us write the stories. It's like having two magical storytelling assistants!
-  log(`Creating a story with our local AI model (${LOCAL_MODEL_NAME})...`, '🤖');
-  const [localStoryParts, _] = await MinimalChainable.run(
+  // Now, we're asking our AI friend to help us write the story. It's like having a magical storytelling assistant!
+  log(`Creating a story with our AI model (${MODEL_NAME})...`, '🤖');
+  const [storyParts, _] = await MinimalChainable.run(
     context, 
-    LOCAL_MODEL_NAME, 
-    (model, prompt) => askAI(API_URL, model, replacePlaceholders(prompt, context)), 
+    MODEL_NAME, 
+    async (prompt) => {
+      const result = await askOpenAI(replacePlaceholders(prompt, context), StorySchema);
+      if (result.error) {
+        log(`Oops! There was a problem with this part of the story: ${result.error}`, '⚠️');
+        return { content: "Our storyteller needed a break here. Let's imagine something wonderful happened!", mood: "mysterious" };
+      }
+      return result;
+    }, 
     prompts
   );
 
-  log(`Creating another story with OpenAI model (${OPENAI_MODEL_NAME})...`, '🌐');
-  const openAIStoryParts = await Promise.all(prompts.map(prompt => 
-    askOpenAI(replacePlaceholders(prompt, context))
-  ));
-
-  // We're announcing that our stories are ready!
-  log(`\nHere's our magical story from the local AI (${LOCAL_MODEL_NAME}):\n`, '📘');
-  localStoryParts.forEach((part, index) => {
-    log(`Chapter ${index + 1}: ${part}\n`);
+  // We're announcing that our story is ready!
+  log(`\nHere's our magical story from the AI (${MODEL_NAME}):\n`, '📘');
+  storyParts.forEach((part, index) => {
+    log(`Chapter ${index + 1} (${part.mood}):\n${part.content}\n`);
   });
 
-  log(`\nAnd here's another version from OpenAI (${OPENAI_MODEL_NAME}):\n`, '📕');
-  openAIStoryParts.forEach((part, index) => {
-    log(`Chapter ${index + 1}: ${part}\n`);
-  });
-
-  // Now, we're saving both stories in special books (files) so we can read them again later!
+  // Now, we're saving our story in a special book (file) so we can read it again later!
   const logsDir = path.join(__dirname, 'logs');
-  const { filePath: localFilePath } = writeTimestampedFile(`local_story_${LOCAL_MODEL_NAME}`, localStoryParts, logsDir);
-  const { filePath: openAIFilePath } = writeTimestampedFile(`openai_story_${OPENAI_MODEL_NAME}`, openAIStoryParts, logsDir);
-  log(`Our local AI story has been saved in '${localFilePath}'!`, '✨');
-  log(`Our OpenAI story has been saved in '${openAIFilePath}'!`, '✨');
+  const { filePath } = writeTimestampedFile(`story_${MODEL_NAME}`, storyParts, logsDir);
+  log(`Our story has been saved in '${filePath}'!`, '✨');
 }
 
 // This is like a safety net. If anything goes wrong while we're making our story, it catches the problem and tells us about it.

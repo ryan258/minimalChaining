@@ -13,7 +13,7 @@ MinimalChaining is a lightweight, flexible framework for chaining AI interaction
   - [🚀 Usage](#-usage)
   - [🧠 Core Components](#-core-components)
     - [MinimalChainable](#minimalchainable)
-    - [Enhanced AI Agent](#enhanced-ai-agent)
+    - [OpenAI Integration](#openai-integration)
   - [🛠 Tools Framework](#-tools-framework)
   - [🎭 Demos](#-demos)
   - [🧪 Testing](#-testing)
@@ -23,16 +23,15 @@ MinimalChaining is a lightweight, flexible framework for chaining AI interaction
 
 ## 🌟 Overview
 
-MinimalChaining provides a simple yet powerful way to interact with AI models in a sequential, context-aware manner. It's particularly useful for applications that require multi-step AI interactions, such as story generation, complex problem-solving, or any task that benefits from maintaining context across multiple AI queries. The framework now includes an enhanced AI agent capable of using various tools to augment its capabilities.
+MinimalChaining provides a simple yet powerful way to interact with AI models in a sequential, context-aware manner. It's particularly useful for applications that require multi-step AI interactions, such as story generation, complex problem-solving, or any task that benefits from maintaining context across multiple AI queries. The framework now includes integration with OpenAI's GPT models and supports structured output.
 
 ## ✨ Features
 
 - Sequential, context-aware AI interactions
-- Flexible integration with various AI models
-- Enhanced AI agent with integrated tools
+- Flexible integration with various AI models, including OpenAI's GPT models
+- Structured output support for more reliable and consistent AI responses
 - Modular design for easy customization and extension
 - Built-in utilities for common tasks (file operations, error handling, etc.)
-- Comprehensive tool framework for extending AI capabilities
 - Demo applications showcasing practical usage
 
 ## 📁 Project Structure
@@ -41,30 +40,18 @@ MinimalChaining provides a simple yet powerful way to interact with AI models in
 minimalChaining/
 ├── MinimalChainable.js
 ├── MinimalChainable.test.js
-├── agents/
-│   ├── enhancedAIAgent.js
-│   ├── enhancedAIAgent.test.js
-│   └── enhancedAIAgent.readme.md
-├── tools/
-│   ├── apiInteractionTool.js
-│   ├── dataVisualizationTool.js
-│   ├── fileSystemTool.js
-│   ├── nlpTool.js
-│   ├── toolIntegrationFramework.js
-│   ├── webScrapingTool.js
-│   └── TOOLS.readme.md
 ├── utils/
 │   ├── aiUtils.js
+│   ├── openAiUtils.js
 │   ├── fileUtils.js
 │   ├── loggerUtils.js
 │   ├── errorUtils.js
 │   ├── envUtils.js
 │   └── stringUtils.js
 ├── demos/
-│   ├── storyBuddy/
-│   │   └── StoryBuddy.js
-│   ├── DebateSimulator.js
-│   └── DebateSimulator.readme.md
+│   └── storyBuddy/
+│       ├── StoryBuddy.js
+│       └── README.md
 ├── .env
 ├── .env.example
 ├── package.json
@@ -89,15 +76,18 @@ minimalChaining/
    API_URL=http://localhost:11434/api/generate
    MODEL_NAME=llama3.1:latest
    PORT=3000
+   OPENAI_API_KEY=your_openai_api_key_here
+   OPENAI_MODEL=gpt-4o-mini
    ```
 
 ## 🚀 Usage
 
-Here's a basic example of how to use the MinimalChainable class:
+Here's a basic example of how to use the MinimalChainable class with OpenAI integration:
 
 ```javascript
 const MinimalChainable = require('./MinimalChainable');
-const { askAI } = require('./utils/aiUtils');
+const { askOpenAI } = require('./utils/openAiUtils');
+const { z } = require('zod');
 
 async function runChain() {
   const context = { topic: "AI" };
@@ -107,32 +97,24 @@ async function runChain() {
     "Discuss the future of {{topic}}"
   ];
 
+  const StorySchema = z.object({
+    content: z.string().describe("The content of the story part"),
+    mood: z.enum(["happy", "sad", "excited", "mysterious"]).describe("The mood of this part of the story")
+  });
+
   const [responses, _] = await MinimalChainable.run(
     context,
-    'your-model-name',
-    askAI,
+    process.env.OPENAI_MODEL,
+    (prompt) => askOpenAI(prompt, StorySchema),
     prompts
   );
 
   responses.forEach((response, index) => {
-    console.log(`Response ${index + 1}:`, response);
+    console.log(`Response ${index + 1} (${response.mood}):`, response.content);
   });
 }
 
 runChain();
-```
-
-For using the Enhanced AI Agent with tools:
-
-```javascript
-const { enhancedAIAgent } = require('./agents/enhancedAIAgent');
-
-async function getWeatherReport() {
-  const response = await enhancedAIAgent('Give me a detailed weather report for New York City.');
-  console.log('Weather Report:', response);
-}
-
-getWeatherReport();
 ```
 
 ## 🧠 Core Components
@@ -145,32 +127,25 @@ Key methods:
 - `run(context, model, callable, prompts)`: Executes the chain of prompts.
 - `toDelimTextFile(name, content, directory)`: Saves the results to a file.
 
-### Enhanced AI Agent
+### OpenAI Integration
 
-The `enhancedAIAgent` is capable of using various tools to augment its capabilities. It can perform tasks such as web scraping, file manipulation, NLP, API interactions, and data visualization.
+The `openAiUtils.js` file provides integration with OpenAI's GPT models, supporting structured output for more reliable and consistent responses.
 
 ## 🛠 Tools Framework
 
 Our tools framework provides a set of utilities that extend the AI's capabilities:
 
-- Web Scraping Tool
-- File System Tool
-- NLP Tool
-- API Interaction Tool
-- Data Visualization Tool
-
-For more details, see the [Tools Framework README](./tools/TOOLS.readme.md).
+- File System Operations
+- Logging
+- Error Handling
+- Environment Variable Management
+- String Manipulation
 
 ## 🎭 Demos
 
-1. **StoryBuddy**: Generates stories using AI.
+1. **StoryBuddy**: Generates stories using AI with structured output.
    ```
    node demos/storyBuddy/StoryBuddy.js
-   ```
-
-2. **DebateSimulator**: Simulates a debate on a given topic.
-   ```
-   node demos/DebateSimulator.js
    ```
 
 ## 🧪 Testing
@@ -181,21 +156,12 @@ We use Jest for testing. Run all tests with:
 npm test
 ```
 
-To run tests for a specific component:
-
-```
-npm test MinimalChainable.test.js
-npm test agents/enhancedAIAgent.test.js
-```
-
 ## 🎨 Customization
 
 MinimalChaining is designed to be easily customizable:
 
 - Modify `MinimalChainable.js` to change the core chaining logic.
 - Add or modify utility modules in the `utils/` directory for additional functionality.
-- Extend the Enhanced AI Agent in `agents/enhancedAIAgent.js`.
-- Add new tools to the `tools/` directory and integrate them into the `toolIntegrationFramework.js`.
 - Create new demo applications in the `demos/` directory to showcase different use cases.
 
 ## 🤝 Contributing
@@ -208,4 +174,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-Explore the power of chained AI interactions with MinimalChaining! 🚀🔗
+Explore the power of chained AI interactions with MinimalChaining! 🚀🔗Hey Google weather
