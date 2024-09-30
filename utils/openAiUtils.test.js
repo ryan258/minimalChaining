@@ -55,7 +55,7 @@ describe('openAiUtils', () => {
       const bodyContent = JSON.parse(fetch.mock.calls[0][1].body);
       expect(bodyContent).toEqual({
         model: 'test-model',
-        messages: [{ role: 'user', content: 'Test prompt\n\nPlease provide your response in JSON format.' }],
+        messages: [{ role: 'user', content: 'Test prompt' }],
         temperature: 0.7,
         response_format: { type: "json_object" }
       });
@@ -79,19 +79,15 @@ describe('openAiUtils', () => {
       console.error = jest.fn();
 
       // Now we're testing our askOpenAI function with this error scenario
-      const result = await askOpenAI('Test prompt', z.object({}));
+      await expect(askOpenAI('Test prompt', z.object({}))).rejects.toThrow(
+        'OpenAI API error: 500 Internal Server Error\nError message'
+      );
 
       // We check if console.error was called with the right error message
       expect(console.error).toHaveBeenCalledWith(
         "🚨 Oops! Something went wrong when talking to OpenAI:",
         expect.any(Error)
       );
-
-      // We check if our function returned the right error object
-      expect(result).toEqual({
-        error: "I couldn't get a proper answer from OpenAI right now. Let's try again later!",
-        details: expect.stringContaining("OpenAI API error: 500 Internal Server Error")
-      });
     });
 
     // This test checks if askOpenAI handles network errors correctly
@@ -103,19 +99,13 @@ describe('openAiUtils', () => {
       console.error = jest.fn();
 
       // Now we're testing our askOpenAI function with this network error scenario
-      const result = await askOpenAI('Test prompt', z.object({}));
+      await expect(askOpenAI('Test prompt', z.object({}))).rejects.toThrow('Network error');
 
       // We check if console.error was called with the right error message
       expect(console.error).toHaveBeenCalledWith(
         "🚨 Oops! Something went wrong when talking to OpenAI:",
         expect.any(Error)
       );
-
-      // We check if our function returned the right error object
-      expect(result).toEqual({
-        error: "I couldn't get a proper answer from OpenAI right now. Let's try again later!",
-        details: "Network error"
-      });
     });
   });
 });
