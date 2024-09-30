@@ -5,21 +5,22 @@ This document provides detailed information about the utility modules used in th
 ## Table of Contents
 
 1. [aiUtils.js](#aiutilsjs)
-2. [envUtils.js](#envutilsjs)
-3. [errorUtils.js](#errorutilsjs)
-4. [fileUtils.js](#fileutilsjs)
-5. [loggerUtils.js](#loggerutilsjs)
-6. [stringUtils.js](#stringutilsjs)
+2. [openAiUtils.js](#openaiutilsjs)
+3. [envUtils.js](#envutilsjs)
+4. [errorUtils.js](#errorutilsjs)
+5. [fileUtils.js](#fileutilsjs)
+6. [loggerUtils.js](#loggerutilsjs)
+7. [stringUtils.js](#stringutilsjs)
 
 ## aiUtils.js
 
-This module handles interactions with AI models.
+This module handles interactions with local AI models.
 
 ### Functions
 
 #### `askAI(apiUrl, modelName, prompt)`
 
-Sends a prompt to the AI model and returns the response.
+Sends a prompt to the local AI model and returns the response.
 
 - Parameters:
   - `apiUrl` (string): The URL of the AI API.
@@ -34,6 +35,39 @@ const { askAI } = require('./utils/aiUtils');
 const response = await askAI('http://localhost:11434/api/generate', 'llama3.1:latest', 'Tell me a joke');
 console.log(response);
 ```
+
+## openAiUtils.js
+
+This module manages interactions with the OpenAI API, supporting structured output.
+
+### Functions
+
+#### `askOpenAI(prompt, schema)`
+
+Sends a prompt to the OpenAI API and returns a structured response based on the provided schema.
+
+- Parameters:
+  - `prompt` (string): The prompt to send to OpenAI.
+  - `schema` (z.ZodType): A Zod schema defining the expected response structure.
+- Returns: Promise<Object> - The AI's response, structured according to the provided schema.
+- Throws: Error if the API request fails or if the response doesn't match the schema.
+
+Example usage:
+```javascript
+const { askOpenAI } = require('./utils/openAiUtils');
+const { z } = require('zod');
+
+const StorySchema = z.object({
+  title: z.string(),
+  content: z.string()
+});
+
+const story = await askOpenAI('Write a short story about a robot', StorySchema);
+console.log(story.title);
+console.log(story.content);
+```
+
+Note: Ensure that `OPENAI_API_KEY` and `OPENAI_MODEL` are set in your environment variables.
 
 ## envUtils.js
 
@@ -102,15 +136,15 @@ Writes content to a file with a timestamp in the filename.
 
 - Parameters:
   - `baseName` (string): The base name for the file.
-  - `content` (string): The content to write.
+  - `content` (string | Array): The content to write. If an array, each item will be written as a separate "chapter".
   - `directory` (string): The directory to save the file in.
-- Returns: string - The path of the created file.
+- Returns: Object - Contains `resultString` (the written content) and `filePath` (the path of the created file).
 
 Example usage:
 ```javascript
 const { writeTimestampedFile } = require('./utils/fileUtils');
 
-const filePath = writeTimestampedFile('story', 'Once upon a time...', './output');
+const { resultString, filePath } = writeTimestampedFile('story', ['Chapter 1', 'Chapter 2'], './output');
 console.log(`File saved at: ${filePath}`);
 ```
 
