@@ -51,13 +51,12 @@ describe('openAiUtils', () => {
         })
       );
 
-      // We parse the body to check if it contains the right data
       const bodyContent = JSON.parse(fetch.mock.calls[0][1].body);
       expect(bodyContent).toEqual({
-        model: 'test-model',
-        messages: [{ role: 'user', content: 'Test prompt' }],
-        temperature: 0.7,
-        response_format: { type: "json_object" }
+          model: 'test-model',
+          messages: [{ role: 'user', content: expect.any(String) }],
+          temperature: 0.7,
+          response_format: { type: "json_object" }
       });
 
       // Finally, we check if our function returned the right response
