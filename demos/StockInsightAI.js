@@ -1,15 +1,17 @@
 // StockInsightAI.js
 
-// First, let's bring in all the tools we need for our stock analysis adventure!
+// First, let's bring in all the tools we need for our enhanced stock analysis adventure!
 const fs = require('fs').promises;  // This is like a librarian that helps us read and write files
 const path = require('path');  // This helps us find our way around folders, like a map
+const axios = require('axios');  // This is like a messenger that can fetch data from the internet for us
 const { askAI } = require('../utils/aiUtils');  // This is our AI friend who will help us analyze stocks
 const { getEnvVariable } = require('../utils/envUtils');  // This helps us get secret information
 const { log, logError } = require('../utils/loggerUtils');  // These help us write messages to our log book
 
-// We're getting the secret address and name of our AI friend
+// We're getting the secret addresses and keys we need
 const API_URL = getEnvVariable('API_URL');  // This is like the phone number for our AI
 const MODEL_NAME = getEnvVariable('MODEL_NAME');  // This is the name of our AI friend
+const ALPHA_VANTAGE_API_KEY = getEnvVariable('ALPHA_VANTAGE_API_KEY');  // This is our secret key to access stock data
 
 // This function is like a time machine that gives us the current date and time
 function getCurrentDateTime() {
@@ -27,9 +29,47 @@ async function ensureLogDirectory(directory) {
   }
 }
 
+// This function is like a stock market reporter that fetches the latest data for a stock
+async function fetchStockData(symbol) {
+  const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`;
+  try {
+    const response = await axios.get(url);  // We're sending our messenger (axios) to get the latest stock info
+    const data = response.data['Global Quote'];
+    if (!data) {
+      throw new Error('No data received from Alpha Vantage');
+    }
+    log(`📊 Fetched real-time data for ${symbol}`, '✅');
+    return {
+      symbol: data['01. symbol'],
+      price: data['05. price'],
+      change: data['09. change'],
+      changePercent: data['10. change percent'],
+      volume: data['06. volume'],
+    };
+  } catch (error) {
+    logError(`❌ Failed to fetch data for ${symbol}: ${error.message}`, error);
+    return null;  // If something goes wrong, we return null
+  }
+}
+
 // This function is like a wise old stock trader that analyzes a stock for us
 async function analyzeStock(symbol) {
-  const prompt = `Please analyze the stock ${symbol} and provide insights on its current market position, potential risks, and growth opportunities. Consider factors such as recent news, market trends, and financial health. Give a brief recommendation on whether to buy, hold, or sell.`;
+  const stockData = await fetchStockData(symbol);
+  if (!stockData) {
+    return `Unable to analyze ${symbol} due to data fetching issues.`;
+  }
+
+  const prompt = `
+    Please analyze the stock ${symbol} based on the following real-time data:
+    Current Price: $${stockData.price}
+    Change: $${stockData.change}
+    Change Percent: ${stockData.changePercent}
+    Volume: ${stockData.volume}
+
+    Provide insights on its current market position, potential risks, and growth opportunities. 
+    Consider factors such as recent price movements, trading volume, and overall market trends. 
+    Give a brief recommendation on whether to buy, hold, or sell.
+  `;
   
   try {
     const analysis = await askAI(API_URL, MODEL_NAME, prompt);  // We're asking our AI friend to analyze the stock
@@ -86,8 +126,9 @@ async function runStockInsightAI() {
   try {
     log("Welcome to StockInsightAI! 📈", "🤖");
     
-    // Let's pretend we're analyzing these stocks (you can change these or add more)
-    const stockSymbols = ['AAPL', 'GOOGL', 'MSFT', 'AMZN'];
+    // Let's analyze these stocks (you can change these or add more)
+    // const stockSymbols = ['NVDA', 'AAPL', 'GOOGL', 'MSFT', 'AMZN'];
+    const stockSymbols = ['NVDA'];
     
     log(`Analyzing stocks: ${stockSymbols.join(', ')}`, "🔍");
     const analyzedStocks = await researchStocks(stockSymbols);
