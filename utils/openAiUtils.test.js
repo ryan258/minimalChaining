@@ -1,110 +1,151 @@
+// openAiUtils.test.js
+
 const { askOpenAI } = require('./openAiUtils');
-const fetch = require('node-fetch');
-const { getEnvVariable } = require('./envUtils');
 const { z } = require('zod');
+const OpenAI = require('openai');
 
-// We're pretending to be the modules we're using
-jest.mock('node-fetch');
-jest.mock('./envUtils');
+jest.mock('openai');
+jest.mock('./envUtils', () => ({
+  getEnvVariable: jest.fn((key) => {
+    if (key === 'OPENAI_API_KEY') return 'test-api-key';
+    if (key === 'OPENAI_MODEL') return 'gpt-4o-mini';
+    return null;
+  }),
+}));
 
-describe('openAiUtils', () => {
-  // Before each test, we reset all the pretend modules
-  beforeEach(() => {
-    jest.resetAllMocks();
+describe('askOpenAI', () => {
+  const TestSchema = z.object({
+    content: z.string(),
+    tone: z.enum(['assertive', 'diplomatic', 'passionate', 'logical']),
   });
 
-  describe('askOpenAI', () => {
-    // This is like setting up our pretend world for the test
-    beforeEach(() => {
-      // We're pretending that our secret API key is "test-api-key"
-      getEnvVariable.mockReturnValueOnce('test-api-key').mockReturnValueOnce('test-model');
-    });
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-    // This test checks if askOpenAI works correctly when everything goes well
-    test('successfully calls OpenAI API and returns response', async () => {
-      const testSchema = z.object({
-        key: z.string()
-      });
-      
-      // We're setting up a pretend successful response from OpenAI
-      const mockResponse = {
-        ok: true,
-        json: jest.fn().mockResolvedValue({
-          choices: [{ message: { content: '{"key": "value"}' } }]
-        })
-      };
-      fetch.mockResolvedValue(mockResponse);
-
-      // Now we're actually testing our askOpenAI function
-      const result = await askOpenAI('Test prompt', testSchema);
-
-      // We check if fetch was called with the right stuff
-      expect(fetch).toHaveBeenCalledWith(
-        'https://api.openai.com/v1/chat/completions',
-        expect.objectContaining({
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer test-api-key'
+  test('successfully calls OpenAI API and returns parsed response', async () => {
+    const mockCreate = jest.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: '{"content":"This is a test response","tone":"assertive"}',
           },
-          body: expect.any(String)
-        })
-      );
-
-      const bodyContent = JSON.parse(fetch.mock.calls[0][1].body);
-      expect(bodyContent).toEqual({
-          model: 'test-model',
-          messages: [{ role: 'user', content: expect.any(String) }],
-          temperature: 0.7,
-          response_format: { type: "json_object" }
-      });
-
-      // Finally, we check if our function returned the right response
-      expect(result).toEqual({key: 'value'});
+        },
+      ],
     });
+    OpenAI.mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: mockCreate,
+        },
+      },
+    }));
 
-    // This test checks if askOpenAI handles API errors correctly
-    test('handles API errors gracefully', async () => {
-      // We're setting up a pretend error response from OpenAI
-      const mockResponse = {
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-        text: jest.fn().mockResolvedValue('Error message')
-      };
-      fetch.mockResolvedValue(mockResponse);
+    const prompt = 'Test prompt';
+    const result = await askOpenAI(prompt, TestSchema);
 
-      // We're also pretending that console.error doesn't actually log anything
-      console.error = jest.fn();
+    expect(OpenAI).toHaveBeenCalledWith({ apiKey: 'test-api-key' });
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
+      model: 'gpt-4o-mini',
+      messages: expect.arrayContaining([
+        expect.objectContaining({ role: 'system' }),
+        expect.objectContaining({ role: 'user', content: expect.stringContaining('Test prompt') })
+      ]),
+      response_format: { type: 'json_object' },
+    }));
 
-      // Now we're testing our askOpenAI function with this error scenario
-      await expect(askOpenAI('Test prompt', z.object({}))).rejects.toThrow(
-        'OpenAI API error: 500 Internal Server Error\nError message'
-      );
-
-      // We check if console.error was called with the right error message
-      expect(console.error).toHaveBeenCalledWith(
-        "🚨 Oops! Something went wrong when talking to OpenAI:",
-        expect.any(Error)
-      );
+    expect(result).toEqual({
+      content: 'This is a test response',
+      tone: 'assertive',
     });
+  });
 
-    // This test checks if askOpenAI handles network errors correctly
-    test('handles network errors gracefully', async () => {
-      // We're setting up a pretend network error
-      fetch.mockRejectedValue(new Error('Network error'));
+  test('throws an error when API call fails', async () => {
+    const mockCreate = jest.fn().mockRejectedValue(new Error('API Error'));
+    OpenAI.mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: mockCreate,
+        },
+      },
+    }));
 
-      // We're also pretending that console.error doesn't actually log anything
-      console.error = jest.fn();
+    await expect(askOpenAI('Test prompt', TestSchema)).rejects.toThrow('API Error');
+  });
 
-      // Now we're testing our askOpenAI function with this network error scenario
-      await expect(askOpenAI('Test prompt', z.object({}))).rejects.toThrow('Network error');
-
-      // We check if console.error was called with the right error message
-      expect(console.error).toHaveBeenCalledWith(
-        "🚨 Oops! Something went wrong when talking to OpenAI:",
-        expect.any(Error)
-      );
+  test('throws an error when response is not valid JSON', async () => {
+    const mockCreate = jest.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: 'This is not JSON',
+          },
+        },
+      ],
     });
+    OpenAI.mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: mockCreate,
+        },
+      },
+    }));
+
+    await expect(askOpenAI('Test prompt', TestSchema)).rejects.toThrow(SyntaxError);
+  });
+
+  test('throws an error when response does not match schema', async () => {
+    const mockCreate = jest.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: '{"content":"This is a test response","tone":"invalid_tone"}',
+          },
+        },
+      ],
+    });
+    OpenAI.mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: mockCreate,
+        },
+      },
+    }));
+
+    await expect(askOpenAI('Test prompt', TestSchema)).rejects.toThrow(z.ZodError);
+  });
+
+  test('handles empty response from API', async () => {
+    const mockCreate = jest.fn().mockResolvedValue({
+      choices: [],
+    });
+    OpenAI.mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: mockCreate,
+        },
+      },
+    }));
+
+    await expect(askOpenAI('Test prompt', TestSchema)).rejects.toThrow('No response from OpenAI');
+  });
+
+  test('handles undefined content in API response', async () => {
+    const mockCreate = jest.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {},
+        },
+      ],
+    });
+    OpenAI.mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: mockCreate,
+        },
+      },
+    }));
+
+    await expect(askOpenAI('Test prompt', TestSchema)).rejects.toThrow('No content in OpenAI response');
   });
 });

@@ -1,92 +1,67 @@
 // demos/DebateSimulator.js
 
-const MinimalChainable = require('../MinimalChainable')
-const { askAI } = require('../utils/aiUtils')
-const { writeTimestampedFile } = require('../utils/fileUtils')
-const { log, logError } = require('../utils/loggerUtils')
-const { asyncErrorHandler } = require('../utils/errorUtils')
-const { getEnvVariable } = require('../utils/envUtils')
-const { replacePlaceholders } = require('../utils/stringUtils')
-const path = require('path')
+const MinimalChainable = require('../MinimalChainable');
+const { askOpenAI } = require('../utils/openAiUtils');
+const { asyncErrorHandler } = require('../utils/errorUtils');
+const { z } = require('zod');
+const { getEnvVariable } = require('../utils/envUtils');
 
-const API_URL = getEnvVariable('API_URL')
-const MODEL_NAME = getEnvVariable('MODEL_NAME')
+// This is our blueprint for how each debate response should look
+const ResponseSchema = z.object({
+  content: z.string().describe("The content of the debater's argument"),
+  tone: z.enum(["assertive", "diplomatic", "passionate", "logical"]).describe("The tone of the argument")
+});
 
-async function runDebate(topic) {
-  log(`Welcome to the AI Debate Simulator! Today's topic: "${topic}"`, '🎭')
+// This function sets up and runs our debate
+async function runDebate(topic, rounds) {
+  console.log(`🎭 Welcome to the AI Debate Simulator! Today's topic: "${topic}"`);
 
-  const context = {
-    topic: topic,
-    sideA: 'Proponent',
-    sideB: 'Opponent',
-    fullDebate: '', // We'll use this to keep track of the entire debate
+  // We're creating our debaters - they're like characters in our debate story
+  const debaters = [
+    { name: "Debater A", position: "Pro" },
+    { name: "Debater B", position: "Con" }
+  ];
+
+  // We're writing the script for our debate - these are the questions we'll ask each debater
+  const prompts = [];
+  for (let i = 0; i < rounds; i++) {
+    prompts.push(`You are ${debaters[0].name}, arguing for the ${debaters[0].position} position on the topic "${topic}". Respond to the previous argument or, if this is the first round, present your opening statement. Provide your response in JSON format with 'content' and 'tone' fields. The 'tone' should be one of: "assertive", "diplomatic", "passionate", or "logical".`);
+    prompts.push(`You are ${debaters[1].name}, arguing for the ${debaters[1].position} position on the topic "${topic}". Respond to the previous argument. Provide your response in JSON format with 'content' and 'tone' fields. The 'tone' should be one of: "assertive", "diplomatic", "passionate", or "logical".`);
   }
 
-  const prompts = [
-    "Introduce the debate topic '{{topic}}' in a neutral manner. Keep it concise, under 100 words.",
-    "As the {{sideA}}, present a clear and concise opening statement on '{{topic}}'. Address the key reasons for your position in about 150 words.",
-    "As the {{sideB}}, deliver a focused opening statement on '{{topic}}'. Outline your main objections in approximately 150 words.",
-    'As the {{sideA}}, present your first main argument. Provide specific evidence or examples. (150 words)',
-    "As the {{sideB}}, directly address and rebut the {{sideA}}'s first argument. Focus on the specific points they raised. (150 words)",
-    "As the {{sideB}}, present your first main argument, ensuring it's distinct from your opening statement. Provide unique evidence. (150 words)",
-    "As the {{sideA}}, directly rebut the {{sideB}}'s first argument. Address their specific points and evidence. (150 words)",
-    'As the {{sideA}}, deliver a compelling closing statement. Summarize your key points and make a final appeal. (150 words)',
-    'As the {{sideB}}, present your closing statement. Recap your main arguments and conclude strongly. (150 words)',
-  ]
+  // We're setting up our debate stage
+  const context = { topic };
+  
+  // We're creating an instance of MinimalChainable
+  const minimalChainable = new MinimalChainable();
 
-  const debateStructure = [
-    'Moderator',
-    'Proponent',
-    'Opponent',
-    'Proponent',
-    'Opponent',
-    'Opponent',
-    'Proponent',
-    'Proponent',
-    'Opponent',
-  ]
-
-  const [debateParts, _] = await MinimalChainable.run(
+  // Now we're ready to start the debate!
+  const [responses] = await minimalChainable.run(
     context,
-    MODEL_NAME,
-    async (model, prompt) => {
-      const fullPrompt = `${prompt}\n\nRemember, this is part of a larger debate. Here's what has happened so far:\n\n${context.fullDebate}\n\nNow, continue the debate:`
-      const response = await askAI(
-        API_URL,
-        model,
-        replacePlaceholders(fullPrompt, context)
-      )
-      context.fullDebate += `${response}\n\n`
-      return response
-    },
+    getEnvVariable('OPENAI_MODEL'),
+    (prompt) => askOpenAI(prompt, ResponseSchema),
     prompts
-  )
+  );
 
-  log("\nHere's our AI-generated debate:\n", '🎬')
+  // Let's showcase the debate results
+  responses.forEach((response, index) => {
+    const debater = debaters[index % 2];
+    if (response) {
+      console.log(`\n${debater.name} (${debater.position}) argues ${response.tone}ly:`);
+      console.log(response.content);
+    } else {
+      console.log(`\n${debater.name} (${debater.position}) failed to respond.`);
+    }
+  });
 
-  const formattedDebate = debateParts
-    .map((part, index) => {
-      return `${debateStructure[index]}:\n${part.trim()}\n`
-    })
-    .join('\n')
-
-  log(formattedDebate)
-
-  const logsDir = path.join(__dirname, 'logs')
-  const { filePath } = writeTimestampedFile('debate', formattedDebate, logsDir)
-  log(`Our debate has been saved in '${filePath}'!`, '📝')
+  console.log("\n🏁 The debate has concluded. Thank you for attending!");
 }
 
-async function startDebate() {
-  const topic = 'Is AI a force for good or bad?'
-  const safeRunDebate = asyncErrorHandler(runDebate)
-  await safeRunDebate(topic)
+// This function kicks off our debate
+function startDebate() {
+  const topic = "Is AI a force for good or bad?";
+  const rounds = 3;
+  asyncErrorHandler(runDebate)(topic, rounds);
 }
 
-module.exports = { startDebate }
-
-if (require.main === module) {
-  startDebate().catch((error) =>
-    logError('Oops! Our debate hit a snag:', error)
-  )
-}
+module.exports = { startDebate };

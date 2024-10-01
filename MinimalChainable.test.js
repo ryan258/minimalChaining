@@ -1,104 +1,138 @@
+// MinimalChainable.test.js
+
+// First, we need to import the class we want to test
 const MinimalChainable = require('./MinimalChainable');
-const fs = require('fs');
-const path = require('path');  // Add this line to import the path module
 
-jest.mock('fs');
+// We also need to import the file system module to mock it
+const fs = require('fs').promises;
 
+// We're going to pretend to be the file system module
+jest.mock('fs', () => ({
+  promises: {
+    mkdir: jest.fn(),
+    appendFile: jest.fn(),
+  }
+}));
+
+// This is where our tests begin!
 describe('MinimalChainable', () => {
+  // Before each test, we create a fresh MinimalChainable object
+  let minimalChainable;
   beforeEach(() => {
-    jest.resetAllMocks();
+    minimalChainable = new MinimalChainable();
   });
 
+  // After each test, we clean up any mocks
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // Let's test the constructor
+  describe('constructor', () => {
+    test('sets default options', () => {
+      expect(minimalChainable.options.maxContextSize).toBe(5);
+      expect(minimalChainable.options.dateFormat).toBe('yyyy-MM-dd-HH-mm-ss');
+    });
+
+    test('allows overriding default options', () => {
+      const customOptions = { maxContextSize: 10, dateFormat: 'yyyy-MM-dd' };
+      const customMinimalChainable = new MinimalChainable(customOptions);
+      expect(customMinimalChainable.options.maxContextSize).toBe(10);
+      expect(customMinimalChainable.options.dateFormat).toBe('yyyy-MM-dd');
+    });
+  });
+
+  // Now let's test the run method
   describe('run', () => {
-    test('replaces placeholders in prompts', async () => {
-      const context = { hero: 'Alice', villain: 'Bob' };
+    test('processes prompts and returns results', async () => {
+      const context = { character: 'Alice' };
       const model = 'test-model';
-      const callable = jest.fn().mockResolvedValue({ content: 'mocked response', mood: 'happy' });
-      const prompts = ['{{hero}} fights {{villain}}'];
+      const callable = jest.fn().mockResolvedValue({ content: 'Test response' });
+      const prompts = ['Tell a story about {{character}}', 'Continue the story'];
+      const schema = {};
 
-      const [output, filledPrompts] = await MinimalChainable.run(context, model, callable, prompts);
+      const [output, contextFilledPrompts] = await minimalChainable.run(context, model, callable, prompts, schema);
 
-      // Check if the placeholder was replaced correctly
-      expect(filledPrompts[0]).toBe('Alice fights Bob');
-      // Check if the callable function was called with the correct arguments
-      expect(callable).toHaveBeenCalledWith('Alice fights Bob', undefined);
+      expect(output).toEqual([{ content: 'Test response' }, { content: 'Test response' }]);
+      expect(contextFilledPrompts[0]).toBe('Tell a story about Alice');
+      expect(contextFilledPrompts[1]).toContain('Continue the story');
+      expect(callable).toHaveBeenCalledTimes(2);
     });
 
-    test('includes previous responses in subsequent prompts', async () => {
-      const context = {};
-      const model = 'test-model';
+    test('handles errors in AI calls', async () => {
       const callable = jest.fn()
-        .mockResolvedValueOnce({ content: 'First response', mood: 'happy' })
-        .mockResolvedValueOnce({ content: 'Second response', mood: 'excited' });
-      const prompts = ['First prompt', 'Second prompt'];
+        .mockResolvedValueOnce({ content: 'Success' })
+        .mockRejectedValueOnce(new Error('AI Error'));
 
-      await MinimalChainable.run(context, model, callable, prompts);
+      const [output, _] = await minimalChainable.run({}, 'model', callable, ['Prompt 1', 'Prompt 2'], {});
 
-      // Check if the second call to callable includes the first response
-      expect(callable.mock.calls[1][0]).toContain('First response');
-    });
-
-    test('returns structured responses', async () => {
-      const context = {};
-      const model = 'test-model';
-      const callable = jest.fn().mockResolvedValue({ content: 'Test content', mood: 'happy' });
-      const prompts = ['Test prompt'];
-
-      const [output] = await MinimalChainable.run(context, model, callable, prompts);
-
-      // Check if the output is the structured response
-      expect(output[0]).toEqual({ content: 'Test content', mood: 'happy' });
+      expect(output).toEqual([{ content: 'Success' }, null]);
     });
   });
 
-  describe('toDelimTextFile', () => {
-    test('creates a file with correct content', () => {
-      // Mock the current date to have a consistent timestamp
-      const mockDate = new Date('2023-01-01T00:00:00Z');
-      jest.spyOn(global, 'Date').mockImplementation(() => mockDate);
+  // Let's test the preparePrompt method
+  describe('preparePrompt', () => {
+    test('replaces placeholders and adds context', () => {
+      const prompt = 'Hello, {{name}}!';
+      const context = { name: 'Alice' };
+      const previousOutputs = [{ content: 'Previous story' }];
 
-      const name = 'test';
-      const content = [
-        { content: 'Chapter 1 content', mood: 'happy' },
-        { content: 'Chapter 2 content', mood: 'excited' }
-      ];
+      const result = minimalChainable.preparePrompt(prompt, context, previousOutputs);
+
+      expect(result).toContain('Hello, Alice!');
+      expect(result).toContain('Previous story');
+    });
+  });
+
+  // Let's test the replacePlaceholders method
+  describe('replacePlaceholders', () => {
+    test('replaces all placeholders in the prompt', () => {
+      const prompt = 'Hello, {{name}}! Welcome to {{place}}.';
+      const context = { name: 'Alice', place: 'Wonderland' };
+
+      const result = minimalChainable.replacePlaceholders(prompt, context);
+
+      expect(result).toBe('Hello, Alice! Welcome to Wonderland.');
+    });
+
+    test('leaves unknown placeholders unchanged', () => {
+      const prompt = 'Hello, {{name}}! Your age is {{age}}.';
+      const context = { name: 'Bob' };
+
+      const result = minimalChainable.replacePlaceholders(prompt, context);
+
+      expect(result).toBe('Hello, Bob! Your age is {{age}}.');
+    });
+  });
+
+  // Let's test the stringifyOutput method
+  describe('stringifyOutput', () => {
+    test('stringifies objects', () => {
+      const output = { key: 'value' };
+      const result = minimalChainable.stringifyOutput(output);
+      expect(result).toBe('{\n  "key": "value"\n}');
+    });
+
+    test('returns strings unchanged', () => {
+      const output = 'Hello, World!';
+      const result = minimalChainable.stringifyOutput(output);
+      expect(result).toBe('Hello, World!');
+    });
+  });
+
+  // Finally, let's test the toDelimTextFile method
+  describe('toDelimTextFile', () => {
+    test('writes content to a file', async () => {
+      const name = 'test-story';
+      const content = [{ chapter: 'Chapter 1' }, { chapter: 'Chapter 2' }];
       const directory = 'test-dir';
 
-      // Mock the file write stream
-      const mockWriteStream = {
-        write: jest.fn(),
-        end: jest.fn()
-      };
-      fs.createWriteStream.mockReturnValue(mockWriteStream);
+      const result = await minimalChainable.toDelimTextFile(name, content, directory);
 
-      const result = MinimalChainable.toDelimTextFile(name, content, directory);
-
-      // Check if the directory was created
-      expect(fs.mkdirSync).toHaveBeenCalledWith(directory, { recursive: true });
-
-      // Check if the file was created with the correct name
-      const expectedFilePath = path.join('test-dir', 'test-2023-01-01-00-00-00.md');
-      expect(fs.createWriteStream).toHaveBeenCalledWith(expectedFilePath);
-
-      // Check if the correct content was written to the file
-      expect(mockWriteStream.write).toHaveBeenCalledWith('## Chapter 1\n\n');
-      expect(mockWriteStream.write).toHaveBeenCalledWith(JSON.stringify({ content: 'Chapter 1 content', mood: 'happy' }, null, 2));
-      expect(mockWriteStream.write).toHaveBeenCalledWith('\n\n');
-      expect(mockWriteStream.write).toHaveBeenCalledWith('## Chapter 2\n\n');
-      expect(mockWriteStream.write).toHaveBeenCalledWith(JSON.stringify({ content: 'Chapter 2 content', mood: 'excited' }, null, 2));
-      expect(mockWriteStream.write).toHaveBeenCalledWith('\n\n');
-
-      // Check if the file stream was closed
-      expect(mockWriteStream.end).toHaveBeenCalled();
-
-      // Check if the method returns the correct result
-      expect(result).toEqual({
-        resultString: expect.stringContaining('Chapter 1 content'),
-        filePath: expectedFilePath
-      });
-
-      // Restore the original Date implementation
-      jest.restoreAllMocks();
+      expect(fs.mkdir).toHaveBeenCalledWith(directory, { recursive: true });
+      expect(fs.appendFile).toHaveBeenCalledTimes(2);
+      expect(result).toHaveProperty('resultString');
+      expect(result).toHaveProperty('filePath');
     });
   });
 });

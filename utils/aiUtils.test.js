@@ -1,68 +1,58 @@
-jest.mock('node-fetch')
-const fetch = require('node-fetch')
-const { askAI } = require('./aiUtils')
+// aiUtils.test.js
 
-describe('aiUtils', () => {
+const { askAI } = require('./aiUtils');
+const fetch = require('node-fetch');
+
+jest.mock('node-fetch');
+
+describe('askAI', () => {
   beforeEach(() => {
-    jest.resetAllMocks()
-  })
+    jest.clearAllMocks();
+  });
 
-  describe('askAI', () => {
-    test('sends correct request and returns AI response', async () => {
-      const mockResponse = {
-        ok: true,
-        json: jest.fn().mockResolvedValue({ response: 'AI response' }),
-      }
-      fetch.mockResolvedValue(mockResponse)
+  test('successfully calls AI API and returns response', async () => {
+    const mockResponse = {
+      ok: true,
+      json: jest.fn().mockResolvedValue({ response: 'AI response' }),
+    };
+    fetch.mockResolvedValue(mockResponse);
 
-      const result = await askAI(
-        'http://test-api.com',
-        'test-model',
-        'Hello, AI'
-      )
+    const result = await askAI('http://test-api.com', 'test-model', 'Hello, AI');
 
-      console.log('Fetch mock calls:', fetch.mock.calls)
-
-      expect(fetch).toHaveBeenCalledWith(
-        'http://test-api.com',
-        expect.objectContaining({
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: expect.any(String),
-        })
-      )
-
-      const bodyContent = JSON.parse(fetch.mock.calls[0][1].body)
-      expect(bodyContent).toEqual({
-        model: 'test-model',
-        prompt: 'Hello, AI',
-        stream: false,
+    expect(fetch).toHaveBeenCalledWith(
+      'http://test-api.com',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: expect.any(String),
       })
+    );
 
-      expect(result).toBe('AI response')
-    })
+    const bodyContent = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(bodyContent).toEqual({
+      model: 'test-model',
+      prompt: 'Hello, AI',
+      stream: false,
+    });
 
-    test('handles API error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
-      fetch.mockRejectedValue(new Error('API error'))
+    expect(result).toBe('AI response');
+  });
 
-      const result = await askAI(
-        'http://test-api.com',
-        'test-model',
-        'Hello, AI'
-      )
+  test('handles API error', async () => {
+    const mockResponse = {
+      ok: false,
+      status: 500,
+    };
+    fetch.mockResolvedValue(mockResponse);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "🙈 Oops! Couldn't talk to our AI friend:",
-        expect.any(Error)
-      )
-      expect(result).toBe(
-        "The magical AI is taking a nap. Let's try again later!"
-      )
+    await expect(askAI('http://test-api.com', 'test-model', 'Hello, AI')).rejects.toThrow('HTTP error! status: 500');
+  });
 
-      consoleSpy.mockRestore()
-    })
-  })
-})
+  test('handles network error', async () => {
+    fetch.mockRejectedValue(new Error('Network error'));
+
+    await expect(askAI('http://test-api.com', 'test-model', 'Hello, AI')).rejects.toThrow('Network error');
+  });
+});

@@ -31,7 +31,7 @@ async function askAI(apiUrl, modelName, prompt) {
     return data.response;
   } catch (error) {
     console.error("🙈 Oops! Couldn't talk to our AI friend:", error);
-    return "The magical AI is taking a nap. Let's try again later!";
+    throw error;
   }
 }
 
