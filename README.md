@@ -9,6 +9,9 @@ MinimalChaining is a lightweight, flexible framework for chaining AI interaction
   - [🌟 Overview](#-overview)
   - [✨ Features](#-features)
   - [📁 Project Structure](#-project-structure)
+  - [🔒 Security & Secrets](#-security-secrets)
+  - [🛡️ Repository History](#-repository-history)
+  - [🙏 Contributing Safely](#-contributing-safely)
   - [📥 Installation](#-installation)
   - [🚀 Usage](#-usage)
   - [🧠 Core Components](#-core-components)
@@ -21,18 +24,22 @@ MinimalChaining is a lightweight, flexible framework for chaining AI interaction
   - [🤝 Contributing](#-contributing)
   - [📄 License](#-license)
 
-## 🌟 Overview
+## 🔒 Security & Secrets
 
-MinimalChaining provides a simple yet powerful way to interact with AI models in a sequential, context-aware manner. It's particularly useful for applications that require multi-step AI interactions, such as story generation, complex problem-solving, or any task that benefits from maintaining context across multiple AI queries. The framework now includes integration with OpenAI's GPT models and supports structured output.
+- **Never commit secrets or API keys to the repository.**
+- The `.env` file is listed in `.gitignore` and should never be committed.
+- Test output and log files are also gitignored to prevent accidental leaks.
+- Always use `.env.example` as a template and fill in your own secrets locally.
 
-## ✨ Features
+## 🛡️ Repository History
 
-- Sequential, context-aware AI interactions
-- Flexible integration with various AI models, including OpenAI's GPT models
-- Structured output support for more reliable and consistent AI responses
-- Modular design for easy customization and extension
-- Built-in utilities for common tasks (file operations, error handling, etc.)
-- Demo applications showcasing practical usage
+- On 2025-04-21, the git history was reset to remove all traces of previously leaked secrets. The repository is now clean and safe for collaboration.
+
+## 🙏 Contributing Safely
+
+- Double-check that `.env`, test output, and log files are not committed.
+- Do not log or print secrets in source code or test output.
+- If you ever accidentally commit a secret, reset history and revoke the key immediately.
 
 ## 📁 Project Structure
 
@@ -72,6 +79,16 @@ minimalChaining/
    ```
 
 3. Set up your `.env` file in the root directory with your AI model configurations:
+   ```
+   API_URL=http://localhost:11434/api/generate
+   MODEL_NAME=llama3.1:latest
+   PORT=3000
+   OPENAI_API_KEY=your_openai_api_key_here
+   OPENAI_MODEL=gpt-4o-mini
+   ```
+
+   ### Example .env file
+
    ```
    API_URL=http://localhost:11434/api/generate
    MODEL_NAME=llama3.1:latest
