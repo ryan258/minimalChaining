@@ -1,0 +1,9 @@
+.env
+node_modules
+package-lock.json
+logs
+*.bu.js
+# Prevent test output and secrets from being committed
+*-output.txt
+*.log
+*.secret
